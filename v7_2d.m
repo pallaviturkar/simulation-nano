@@ -60,9 +60,9 @@ rhog = 1.18;
 mwn = 26.58             %101(kg/kmol)
 rhon = 2700             %3950;%(kg/m^3)% bulk
 Cpn = (10^3)*0.91       %451 %   (10^3)*0.91;%(J/kgK)
-volfM = pi()/22;         % max volume fraction
+volfM = pi()/6;         % max volume fraction
 Rnano =(1/2)*60e-9;     % radius of avg nano particle in meters
-df = 1.7;
+df = 1.8;
 Rg = (1/2)*250e-9;
 % ra =((Rg/Rnano)^df*Rnano^2)^(1/2);% from Keblinski Surface Area Equivilent radius
 inVolf = (Rg/Rnano)^(df-3);
@@ -115,6 +115,11 @@ tf=V/5.4e-12;
 %======preallocation===
 lambda = zeros(1, loop);
 J = zeros(loop, numdr);
+VolFlux = zeros(loop, numdr);
+V_dot =  zeros(1, numdr);
+Theta = zeros(1, loop);
+delh = zeros(1, numdr);
+loc = zeros(1, loop);
 for j =  2:loop   % time loop
     
     % Calculation of saturated vapour concentration
@@ -134,8 +139,8 @@ for j =  2:loop   % time loop
     
     % volume flux VolFlux
     VolFlux(j, :) = 2*pi*r(1:end-1).*dr.*J(j,:)./rhol;
-    V_dot(j, :) = -2.*pi.*sum(J(j, :).*r(1:end-1).*dr./rhol);
-    V(j) =  V(j-1) + V_dot(j, :).*dt;
+    V_dot(j) = -2.*pi.*sum(J(j, :).*r(1:end-1).*dr./rhol);
+    V(j) =  V(j-1) + V_dot(j).*dt;
     
     if V < 0               % Break the time loop once we get negative volume and go for ploting
         t(count) = j*dt;
@@ -154,27 +159,14 @@ for j =  2:loop   % time loop
     %     disp("RS " +RS(j));
     int_h = -(sqrt(RS(j)^2 - R^2)-RS(j));
     % hprev = h(j-1,:);
-    h(j, :) = RS(j)*cos(asin(r(1:end-1)./RS(j))) - (RS(j)-int_h);
-    delh = h(j, :) - h(j-1, :);
+    h(j, :) = RS(j)*cos(asin(r(1:end-1)./RS(j))) - (RS(j)-int_h); 
+    %delh = h(j, :) - h(j-1, :);
     
     % Temperature
     Tls(j, :) = Tinf - ((L.*J(j, :)).*( h(j, :)./lamff + tss./lams));
    % Ts  = Tinf- ((L.*J(j, :)).*( (h+tss)./lams));   % Ignore
     
-    % Liquid velocity
-    %     for rloc = 2:size(r,2)
-    %         U(j,rloc) = (-1/(rhol.*r(rloc).*h(j, rloc)))...
-    %             .*(sum(r(1:rloc).*dr.*(J(j,1:rloc) + rhol.*delh(1:rloc)./dt)));
-    % %         if rloc == R
-    % %               dU/dr ==0;
-    % %
-    % %            % U(j, 1) = U(j, 2);
-    % %         end
-    % %         if U(j,rloc) <0
-    % %             U(j,rloc) =0;
-    % %         end
-    %     end
-    %U(1:521,550)=0;
+   
     
     tt=j*dt/tf;
     rt=r(1:end-1)./R;
@@ -198,7 +190,7 @@ for j =  2:loop   % time loop
     end
     % Find if concentration is over max, then place inward
     %********************************************************
-    locmax = find(C(j,:) > MaxVolf*rhon );
+    locmax = find(C(j,:) > MaxVolf*rhon, 1 );
     if ~isempty(locmax)
         for invi =1:size(r,2)-1
             rloc = size(r,2)-invi;
@@ -229,6 +221,7 @@ for j =  2:loop   % time loop
      totError =M0 - sum(C(j, :).*pi.*r(1:end-1).*2*dr.*h(j, :))...
             /(sum(2*pi.*r(1:end-1).*h(j, :).*dr))*V(j);
         C(j, end) =C(j,end) + totError/(2*pi*r(end-1)*dr*h(j, end-1));
+     
     
     %  Volume fraction
     volf(j, :) = C(j,:)./rhon;
@@ -236,7 +229,7 @@ for j =  2:loop   % time loop
     %%%%%%%%%%%%%%%%%%%%%%%%
     %if mod((dt*j),interval) ==0 | i==10
     count=count+1;
-    %disp(['saved at ' num2str(j*dt) ' seconds'] );
+    disp(['saved at ' num2str(j*dt) ' seconds'] );
     %disp([' mean (Csat) ' num2str(mean(Csat))]);
     loc(count) = j;
     
